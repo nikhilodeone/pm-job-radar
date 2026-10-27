@@ -16,6 +16,7 @@ import { COMPANIES } from "../src/lib/companies";
 import { applyFilters, DEFAULT_FILTERS } from "../src/lib/filter";
 import { buildCorpus, buildResumeProfile, scoreJob, estimateYears } from "../src/lib/scoring";
 import { jobsToCsv } from "../src/lib/csv";
+import { sanitizeJob, sanitizeJobs } from "../src/lib/sanitize";
 import type { Company, Job } from "../src/lib/types";
 
 let passed = 0;
@@ -272,6 +273,45 @@ t("postings without descriptions are not scored", () => {
   const s = scoreJob(profile, mk("nodesc", { description: "" }), corpus);
   assert.equal(s.score, null);
   assert.equal(s.label, "No data");
+});
+
+
+console.log("Robustness against odd feed data");
+t("location parser never throws and only returns strings", () => {
+  const weird = ["", " ", "constructor", "__proto__", "toString, valueOf", "(Remote)", "Remote", "US-CA-Remote", "Multiple Locations", "2 Locations", "N/A", "-", ",,,", "IN", "CA", "DE", "🙂 Berlin", "a".repeat(5000), "Bengaluru,Karnataka,India;Pune,India|Remote", "United States, Remote (Hybrid)"];
+  for (const w of weird) {
+    const l = parseLocation(w);
+    for (const k of ["raw", "city", "region", "country"] as const) assert.ok(l[k] === undefined || typeof l[k] === "string", `${w}: ${k}`);
+    assert.equal(typeof l.remote, "boolean");
+  }
+  assert.equal(parseLocation("constructor").country, undefined);
+  parseLocations([null, undefined, 5 as unknown as string, {} as unknown as string]);
+});
+t("sanitizeJob coerces hostile / malformed jobs", () => {
+  const base = { id: "amazon:1", companyId: "amazon", company: "Amazon", title: "Product Manager", level: "PM", url: "https://www.amazon.jobs/x", locations: [], remote: false, description: "x" };
+  assert.equal(sanitizeJob(null), null);
+  assert.equal(sanitizeJob({ ...base, title: { a: 1 } }), null);
+  const j = sanitizeJob({ ...base, team: { id: 5 }, level: "Wizard", postedAt: "garbage", url: "javascript:alert(1)", description: null, locations: [null, 7, { raw: { x: 1 }, city: ["Pune"] }, { raw: "Pune, India", city: "Pune", country: "India", remote: "yes" }] })!;
+  assert.equal(j.team, undefined);
+  assert.equal(j.level, "PM");
+  assert.equal(j.postedAt, undefined);
+  assert.equal(j.url, "https://www.amazon.jobs/en/search?base_query=product+manager"); // falls back to the careers page, never javascript:
+  assert.equal(j.description, "");
+  assert.equal(j.locations.length, 1);
+  assert.equal(j.locations[0].remote, false);
+  assert.equal(sanitizeJobs("nope").length, 0);
+});
+t("adapters survive odd shapes end-to-end", () => {
+  const am = normalizeAmazon(co("amazon"), { id_icims: "9", title: "Product Manager", team: { id: 3 } as unknown as string, job_category: { x: 1 } as unknown as string, normalized_location: null as unknown as string, description: 42 as unknown as string })!;
+  const ef = normalizeEightfold(co("microsoft") as never, { id: 1, name: "Product Manager", locations: [{ city: "X" } as unknown as string, null as unknown as string], department: ["a"] as unknown as string })!;
+  const le = normalizeLever(co("spotify"), { id: "1", text: "Product Manager", categories: null as never, lists: null as never })!;
+  const at = normalizeAtlassian(co("atlassian"), { id: 1, title: "Product Manager", locations: "Remote" as unknown as string[], category: { a: 1 } as unknown as string })!;
+  const out = sanitizeJobs([am, ef, le, at]);
+  assert.equal(out.length, 4);
+  for (const j of out) {
+    assert.ok(j.team === undefined || typeof j.team === "string");
+    assert.equal(typeof j.description, "string");
+  }
 });
 
 console.log(`\n${passed} test groups passed${process.exitCode ? " – WITH FAILURES" : ""}`);
