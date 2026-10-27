@@ -1,0 +1,33 @@
+{
+  "name": "pm-job-radar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard that aggregates open Product Management roles from top tech companies' career pages and ranks them against your resume.",
+  "scripts": {
+    "postinstall": "node scripts/copy-vendor.mjs",
+    "predev": "node scripts/copy-vendor.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-vendor.mjs",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/test.ts"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "mammoth": "1.8.0",
+    "pdfjs-dist": "3.11.174",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}

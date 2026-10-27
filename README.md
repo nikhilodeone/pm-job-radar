@@ -1,0 +1,73 @@
+# PM Job Radar
+
+A dashboard of **open Product Management roles pulled straight from top tech companies' career-site feeds**, with a **location filter** and a **resume-vs-job-description match score**. Every card has an **Apply** button that opens the company's own posting.
+
+- **Companies:** Amazon, Netflix, Microsoft · NVIDIA, Salesforce, Adobe, Intel, PayPal, Mastercard, Atlassian, Spotify, Palantir, Cloudflare, Datadog, Twilio, Okta, Dropbox, Workday · Stripe, Airbnb, Databricks, Anthropic, OpenAI, Figma, Pinterest, Reddit, Coinbase, Instacart, Robinhood, Lyft, Discord, Duolingo, MongoDB, Asana, GitLab, Scale AI, Notion, Ramp, Linear, Perplexity, CRED
+- **Google, Meta, Apple, Uber** have no stable public jobs feed. They appear as one-click, pre-filtered search links in the **Sources** panel (the Google link picks up your location filter).
+- **No API keys, no database, no environment variables.**
+
+## Run locally
+
+```bash
+npm install        # also copies the PDF/DOCX parsers into public/vendor
+npm run dev        # http://localhost:3000
+npm test           # offline unit tests (adapters, locations, filters, scoring)
+```
+
+Requires Node 20.9+.
+
+## Deploy: GitHub → Vercel
+
+```bash
+git init && git add . && git commit -m "PM Job Radar"
+git branch -M main
+git remote add origin https://github.com/<you>/pm-job-radar.git
+git push -u origin main
+```
+
+Then at vercel.com → **Add New → Project → import the repo → Deploy**. The defaults (Next.js, `npm run build`) are correct; nothing to configure.
+
+## How it works
+
+| Piece | What it does |
+|---|---|
+| `src/app/api/source/route.ts` | `GET /api/source?id=stripe` fetches one company's feed server-side, keeps only PM titles, normalises location/level/date, and returns JSON. Only ids from `companies.ts` are accepted (no open proxy). Responses are CDN-cached for 30 min. |
+| `src/lib/adapters/*` | One adapter per hiring platform: Greenhouse, Lever, Ashby, Workday, Amazon, Eightfold (Netflix, Microsoft), Atlassian. |
+| `src/components/Dashboard.tsx` | The browser calls `/api/source` for each company (6 at a time), so rows appear progressively and one broken site never blocks the rest. |
+| `src/lib/scoring.ts` | Resume matching – runs **entirely in your browser**. |
+| `src/lib/location.ts` | Turns strings like `Bangalore, KA, IND` or `Remote - US` into country / city / remote for the filters. |
+
+### The match score (0–100)
+
+`40% skills + 25% wording + 20% level fit + 15% domain fit`
+
+- **Skills** – weighted PM skill taxonomy (roadmapping, experimentation, SQL, GTM, stakeholder mgmt, AI/ML…) found in the JD vs. your resume; requirements-section mentions count extra.
+- **Wording** – share of the JD's distinctive vocabulary (TF-IDF weighted across all loaded postings) that appears in your resume.
+- **Level fit** – your years of experience (from "8+ years…" or your work-history dates) vs. the JD's stated requirement, or the typical range for the title (APM → VP).
+- **Domain** – fintech, marketplace, ads, enterprise SaaS, devtools, hardware/mobility, etc.
+- Click **Why this score?** on any card to see the breakdown, the skills you cover and the gaps.
+
+It is a transparent keyword-and-level heuristic to help you prioritise – **not** an ATS simulation or a hiring prediction. Tune weights in `src/lib/scoring.ts` and the taxonomy in `src/lib/skills.ts`.
+
+### Privacy
+
+Your resume is parsed (PDF.js / Mammoth) and scored in the browser; it is never sent to a server. By default it is remembered in this browser's `localStorage` – untick **Remember on this device** (or press **Remove**) to wipe it. Saved/Applied marks and filters are also stored only in your browser.
+
+## Adding or removing a company
+
+Edit one line in `src/lib/companies.ts`:
+
+```ts
+{ id: "razorpay", name: "Razorpay", tier: "High-growth", careersUrl: "https://razorpay.com/jobs/",
+  source: { ats: "greenhouse", board: "razorpaysoftwareprivatelimited" } },
+```
+
+Find the token from the company's careers URL: `boards.greenhouse.io/<token>` · `jobs.lever.co/<site>` · `jobs.ashbyhq.com/<board>` · `<tenant>.wd5.myworkdayjobs.com/<site>`. A wrong token simply shows as "unavailable" in the Sources panel.
+
+## Known limitations
+
+- **Feeds are unofficial in places.** Greenhouse, Lever and Ashby offer public job-board APIs. Workday, Amazon, Atlassian, Netflix and Microsoft use undocumented endpoints that their sites call themselves; they work today but can change without notice (Netflix, Microsoft and Atlassian are tagged **beta**). Check the **Sources** panel after deploying – it lists every feed's status with the exact error and a Retry button.
+- **Dates:** Greenhouse and Workday expose "last updated"/approximate dates rather than the original posting date.
+- **Descriptions:** a posting whose feed has no description can't be scored (shown as "–"); open it to read the JD.
+- **Scanned (image-only) PDFs** can't be read – paste the text instead.
+- Respect each company's terms; this app only reads the public feeds their own career sites use and caches results for 30 minutes.

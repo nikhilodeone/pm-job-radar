@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+.vercel
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+# copied from node_modules by scripts/copy-vendor.mjs (postinstall / prebuild)
+public/vendor
+.DS_Store
