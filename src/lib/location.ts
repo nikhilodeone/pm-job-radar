@@ -107,6 +107,9 @@ addCities("Belgium", ["Brussels"]);
 addCities("Romania", ["Bucharest"]);
 addCities("Türkiye", ["Istanbul"]);
 
+const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+const lookup = <T,>(o: Record<string, T>, k: string): T | undefined => (own(o, k) ? o[k] : undefined);
+
 const REMOTE_RE = /\b(remote|anywhere|work from home|wfh|distributed|virtual)\b/i;
 const NOISE_RE = /^(remote|hybrid|on-?site|onsite|in[- ]office|multiple locations?|\d+ locations?|various|flexible|field|tbd|n\/a|global|worldwide|emea|apac|amer|latam|americas|europe|asia)$/i;
 
@@ -117,7 +120,7 @@ function titleCase(s: string): string {
 /* ---------- parsing ---------- */
 
 export function parseLocation(raw: string): NormLocation {
-  const text = raw.trim();
+  const text = String(raw ?? "").trim();
   const remote = REMOTE_RE.test(text);
   // Strip parentheticals like "(Hybrid)" but keep their text for the remote check above.
   const cleaned = text.replace(/\([^)]*\)/g, " ");
@@ -140,12 +143,12 @@ export function parseLocation(raw: string): NormLocation {
     const t = lower[i];
     // two-letter tokens are ambiguous (CA = California, IN = Indiana, DE = Delaware…) – only
     // accept them as a country when they are the last token and no US-state reading fits.
-    const c = COUNTRY_ALIASES[t];
+    const c = lookup(COUNTRY_ALIASES, t);
     if (!c) continue;
     if (t.length <= 2) {
       const isLast = i === lower.length - 1;
       if (!isLast) continue;
-      if (US_STATES[t] && !sawCanadaHint && lower.length >= 2 && !(t === "in" && lower.some((x) => IN_STATES.has(x) || CITIES[x]?.[1] === "India"))) continue;
+      if (lookup(US_STATES, t) && !sawCanadaHint && lower.length >= 2 && !(t === "in" && lower.some((x) => IN_STATES.has(x) || lookup(CITIES, x)?.[1] === "India"))) continue;
     }
     country = c;
     break;
@@ -153,7 +156,7 @@ export function parseLocation(raw: string): NormLocation {
 
   // pass 2 – cities
   for (const t of lower) {
-    const hit = CITIES[t];
+    const hit = lookup(CITIES, t);
     if (hit) {
       city = hit[0];
       country = country ?? hit[1];
@@ -167,10 +170,10 @@ export function parseLocation(raw: string): NormLocation {
     if (!country && IN_STATES.has(t) && t.length > 2) {
       country = "India";
       region = titleCase(tokens[i]);
-    } else if (!country && (US_STATE_NAMES.has(t) || (t.length === 2 && US_STATES[t] && i > 0))) {
+    } else if (!country && (US_STATE_NAMES.has(t) || (t.length === 2 && lookup(US_STATES, t) && i > 0))) {
       if (t.length === 2 && sawCanadaHint) continue;
       country = "United States";
-      region = US_STATES[t] ?? titleCase(tokens[i]);
+      region = lookup(US_STATES, t) ?? titleCase(tokens[i]);
     } else if (!country && CA_PROVINCES.has(t)) {
       country = "Canada";
       region = titleCase(tokens[i]);
@@ -181,7 +184,7 @@ export function parseLocation(raw: string): NormLocation {
   if (!city) {
     const guess = tokens.find((t, i) => {
       const l = lower[i];
-      return !COUNTRY_ALIASES[l] && !US_STATES[l] && !US_STATE_NAMES.has(l) && !IN_STATES.has(l) && !CA_PROVINCES.has(l);
+      return !lookup(COUNTRY_ALIASES, l) && !lookup(US_STATES, l) && !US_STATE_NAMES.has(l) && !IN_STATES.has(l) && !CA_PROVINCES.has(l);
     });
     if (guess && tokens.length > 1) city = titleCase(guess);
     else if (guess && !country) city = titleCase(guess);
