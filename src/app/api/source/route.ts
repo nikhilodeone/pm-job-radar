@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { companyById } from "@/lib/companies";
 import { fetchCompanyJobs } from "@/lib/adapters";
+import { sanitizeJobs } from "@/lib/sanitize";
 
 // One request = one company. The browser fans out across companies, so each call stays short and
 // a slow or broken career site can never take the whole dashboard down.
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (!company) return NextResponse.json({ id, error: "Unknown source" }, { status: 404 });
 
   try {
-    const jobs = await fetchCompanyJobs(company);
+    const jobs = sanitizeJobs(await fetchCompanyJobs(company));
     return NextResponse.json(
       { id, fetchedAt: new Date().toISOString(), jobs },
       { headers: { "Cache-Control": "public, max-age=300, s-maxage=1800, stale-while-revalidate=7200" } }
