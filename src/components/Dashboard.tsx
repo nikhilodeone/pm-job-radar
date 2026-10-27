@@ -8,6 +8,8 @@ import { usePersistentState } from "@/lib/storage";
 import { jobsToCsv } from "@/lib/csv";
 import { isRecent } from "@/lib/format";
 import { pool } from "@/lib/pool";
+import { sanitizeJobs } from "@/lib/sanitize";
+import ErrorBoundary from "./ErrorBoundary";
 import FilterPanel from "./FilterPanel";
 import ResumePanel from "./ResumePanel";
 import SourceStatus from "./SourceStatus";
@@ -44,9 +46,10 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/source?id=${encodeURIComponent(id)}`, { signal: opts.signal, cache: opts.fresh ? "no-cache" : "default" });
       const data = (await res.json().catch(() => ({ id, error: `Unexpected response (HTTP ${res.status})` }))) as SourceResponse;
-      if (!res.ok || data.error || !data.jobs) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setJobsBySource((j) => ({ ...j, [id]: data.jobs }));
-      setSources((s) => ({ ...s, [id]: { state: "ok", count: data.jobs!.length, fetchedAt: data.fetchedAt } }));
+      if (!res.ok || data.error || !Array.isArray(data.jobs)) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const jobs = sanitizeJobs(data.jobs);
+      setJobsBySource((j) => ({ ...j, [id]: jobs }));
+      setSources((s) => ({ ...s, [id]: { state: "ok", count: jobs.length, fetchedAt: typeof data.fetchedAt === "string" ? data.fetchedAt : undefined } }));
     } catch (e) {
       if (opts.signal?.aborted) return;
       setSources((s) => ({ ...s, [id]: { state: "error", error: e instanceof Error ? e.message : "Failed to load" } }));
@@ -271,7 +274,9 @@ export default function Dashboard() {
           <SourceStatus sources={sources} jobCounts={jobCounts} retry={(id) => void loadSource(id)} location={locationForLinks} />
 
           {filtered.slice(0, limit).map((j) => (
-            <JobCard key={j.id} job={j} tier={tierOf.get(j.companyId) ?? "High-growth"} match={scores[j.id]} status={statuses[j.id]} hasResume={hasResume} onStatus={onStatus} />
+            <ErrorBoundary key={j.id} fallback={<article className="card">Couldn&apos;t display this posting: {j.title} at {j.company}. <a href={j.url} target="_blank" rel="noopener noreferrer">Open it directly ↗</a></article>}>
+              <JobCard job={j} tier={tierOf.get(j.companyId) ?? "High-growth"} match={scores[j.id]} status={statuses[j.id]} hasResume={hasResume} onStatus={onStatus} />
+            </ErrorBoundary>
           ))}
 
           {filtered.length > limit && (
