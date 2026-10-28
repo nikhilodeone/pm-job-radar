@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COMPANIES } from "@/lib/companies";
-import type { Job, MatchResult, SourceResponse, Tier } from "@/lib/types";
+import { TIERS, type Job, type MatchResult, type SourceResponse } from "@/lib/types";
 import { applyFilters, cityKey, countBy, DEFAULT_FILTERS, normalizeFilters, splitCityKey, type Filters, type Status } from "@/lib/filter";
 import type { Option } from "./MultiSelect";
 import { buildCorpus, buildResumeProfile, scoreJob } from "@/lib/scoring";
@@ -24,7 +24,6 @@ export interface SourceState {
 }
 
 const PAGE = 40;
-const TIER_ORDER: Tier[] = ["FAANG+", "Big Tech", "High-growth"];
 const tierOf = new Map(COMPANIES.map((c) => [c.id, c.tier]));
 
 export default function Dashboard() {
@@ -64,7 +63,7 @@ export default function Dashboard() {
       abortRef.current?.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      const ordered = [...COMPANIES].sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
+      const ordered = [...COMPANIES].sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier));
       void pool(ordered, 6, (c) => loadSource(c.id, { signal: ctrl.signal, fresh }));
     },
     [loadSource]

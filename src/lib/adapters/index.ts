@@ -6,6 +6,7 @@ import { fetchWorkday } from "./workday";
 import { fetchAmazon } from "./amazon";
 import { fetchEightfold } from "./eightfold";
 import { fetchAtlassian } from "./atlassian";
+import { fetchSmartRecruiters } from "./smartrecruiters";
 
 export async function fetchCompanyJobs(c: Company): Promise<Job[]> {
   const s = c.source;
@@ -31,6 +32,9 @@ export async function fetchCompanyJobs(c: Company): Promise<Job[]> {
       break;
     case "atlassian":
       jobs = await fetchAtlassian(c);
+      break;
+    case "smartrecruiters":
+      jobs = await fetchSmartRecruiters({ ...c, source: s });
       break;
   }
   // newest first, stable

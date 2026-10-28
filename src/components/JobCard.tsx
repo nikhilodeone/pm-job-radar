@@ -6,6 +6,8 @@ import { formatLocation } from "@/lib/location";
 import { hueOf, isRecent, timeAgo } from "@/lib/format";
 import ScoreRing from "./ScoreRing";
 
+const TIER_CLASS: Record<Tier, string> = { "FAANG+": "a", "Big Tech": "b", "High-growth": "c", "Enterprise & Industry": "d" };
+
 interface Props {
   job: Job;
   tier: Tier;
@@ -42,7 +44,7 @@ function JobCardImpl({ job, tier, match, status, hasResume, onStatus }: Props) {
         <div className="card-body">
           <div className="card-company">
             <span>{job.company}</span>
-            <span className={`tier tier-${tier === "FAANG+" ? "a" : tier === "Big Tech" ? "b" : "c"}`}>{tier}</span>
+            <span className={`tier tier-${TIER_CLASS[tier] ?? "c"}`}>{tier}</span>
             {fresh && <span className="new">New</span>}
           </div>
           <h3 className="card-title">

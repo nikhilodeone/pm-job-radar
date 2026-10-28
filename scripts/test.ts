@@ -12,7 +12,9 @@ import { normalizeWorkday, parsePostedOn } from "../src/lib/adapters/workday";
 import { normalizeAmazon } from "../src/lib/adapters/amazon";
 import { normalizeEightfold } from "../src/lib/adapters/eightfold";
 import { normalizeAtlassian } from "../src/lib/adapters/atlassian";
-import { COMPANIES } from "../src/lib/companies";
+import { normalizeSmartRecruiters } from "../src/lib/adapters/smartrecruiters";
+import { COMPANIES, MANUAL_SOURCES } from "../src/lib/companies";
+import { TIERS } from "../src/lib/types";
 import { applyFilters, DEFAULT_FILTERS, cityKey, normalizeFilters, splitCityKey } from "../src/lib/filter";
 import { buildCorpus, buildResumeProfile, scoreJob, estimateYears } from "../src/lib/scoring";
 import { jobsToCsv } from "../src/lib/csv";
@@ -181,6 +183,46 @@ t("atlassian", () => {
   assert.equal(j.level, "Staff / Principal");
 });
 
+t("smartrecruiters (visa)", () => {
+  const sr = co("visa") as Company & { source: { ats: "smartrecruiters"; company: string } };
+  const raw = { id: "744000012345", name: "Senior Product Manager, Visa Direct", releasedDate: "2026-10-26T08:30:00.000Z", location: { city: "Bengaluru", region: "Karnataka", country: "in", remote: false }, department: { label: "Product" } };
+  const detail = { postingUrl: "https://jobs.smartrecruiters.com/Visa/744000012345-senior-product-manager", jobAd: { sections: { companyDescription: { text: "<p>About Visa — ignored</p>" }, jobDescription: { text: `<p>${JD}</p>` }, qualifications: { title: "Qualifications", text: "<ul><li>SQL</li><li>Experimentation</li></ul>" } } } };
+  const j = normalizeSmartRecruiters(sr, raw, detail)!;
+  assert.equal(j.id, "visa:744000012345");
+  assert.equal(j.level, "Senior");
+  assert.deepEqual([j.locations[0].city, j.locations[0].country], ["Bengaluru", "India"]); // "in" must resolve to India, never Indiana
+  assert.equal(j.url, detail.postingUrl);
+  assert.equal(j.postedAt, "2026-10-26T08:30:00.000Z");
+  assert.match(j.description, /• SQL/);
+  assert.ok(!/ignored/.test(j.description), "company boilerplate is not scored");
+  const us = normalizeSmartRecruiters(sr, { ...raw, location: { city: "Austin", region: "TX", country: "us" } })!;
+  assert.equal(us.locations[0].country, "United States");
+  assert.equal(us.url, "https://jobs.smartrecruiters.com/Visa/744000012345"); // fallback when the detail call failed
+  assert.equal(us.description, "");
+  const rem = normalizeSmartRecruiters(sr, { ...raw, location: { country: "gb", remote: true } })!;
+  assert.deepEqual([rem.remote, rem.locations[0]?.country], [true, "United Kingdom"]);
+  assert.equal(normalizeSmartRecruiters(sr, { ...raw, name: "Product Marketing Manager" }), null);
+  assert.doesNotThrow(() => normalizeSmartRecruiters(sr, { id: "1", name: "Product Manager", location: null as never }));
+});
+
+console.log("Company registry");
+t("registry is well-formed", () => {
+  const ids = COMPANIES.map((c) => c.id);
+  assert.equal(new Set(ids).size, ids.length, "company ids are unique");
+  for (const c of COMPANIES) {
+    assert.ok(TIERS.includes(c.tier), `${c.id} has a valid tier`);
+    assert.match(c.careersUrl, /^https:\/\//, `${c.id} careersUrl`);
+    if (c.source.ats === "workday") assert.match(c.source.host, /^[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com$/, `${c.id} workday host`);
+  }
+  for (const m of MANUAL_SOURCES) {
+    assert.ok(TIERS.includes(m.tier), `${m.id} has a valid tier`);
+    assert.match(m.searchUrl(), /^https:\/\//);
+    assert.ok(!COMPANIES.some((c) => c.id === m.id), `${m.id} is not both a feed and a manual link`);
+  }
+  for (const tier of TIERS) assert.ok(COMPANIES.some((c) => c.tier === tier), `tier ${tier} has feed companies`);
+  assert.equal(TIERS.length, 4);
+});
+
 console.log("Filters");
 const mk = (id: string, over: Partial<Job>): Job => ({ id, companyId: "stripe", company: "Stripe", title: "Product Manager", level: "PM", url: "https://x/" + id, locations: [], remote: false, description: JD, postedAt: "2026-10-20T00:00:00Z", ...over });
 const jobs: Job[] = [
@@ -207,6 +249,13 @@ t("single country / city / remote / recency", () => {
   assert.equal(ids({ levels: ["Senior"] }), "b");
   assert.equal(ids({ q: "amazon seattle" }), "e");
   assert.equal(ids({ tiers: ["FAANG+"] }), "be");
+});
+t("new Enterprise & Industry tier filters by company", () => {
+  const ent = [mk("w1", { companyId: "walmart", company: "Walmart" }), mk("v1", { companyId: "visa", company: "Visa" }), mk("s1", { companyId: "stripe" })];
+  const out = applyFilters(ent, { ...DEFAULT_FILTERS, tiers: ["Enterprise & Industry"] }, {}, {}, NOW).map((j) => j.id).sort().join("");
+  assert.equal(out, "v1w1");
+  const both = applyFilters(ent, { ...DEFAULT_FILTERS, tiers: ["Enterprise & Industry", "High-growth"] }, {}, {}, NOW).length;
+  assert.equal(both, 3);
 });
 t("multiple countries", () => {
   assert.equal(ids({ countries: ["India", "United Kingdom"] }), "abdfg");

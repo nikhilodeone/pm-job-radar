@@ -30,7 +30,7 @@ export default function SourceStatus({ sources, jobCounts, retry, location }: Pr
         </p>
         <div className="chips">
           {MANUAL_SOURCES.map((m) => (
-            <a key={m.id} className="pill link" href={m.searchUrl(location)} target="_blank" rel="noopener noreferrer" title={m.note}>
+            <a key={m.id} className="pill link" href={m.searchUrl(location)} target="_blank" rel="noopener noreferrer" title={`${m.tier} · ${m.note}`}>
               {m.name} ↗
             </a>
           ))}

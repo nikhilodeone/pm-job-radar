@@ -1,6 +1,6 @@
 "use client";
 import { COMPANIES } from "@/lib/companies";
-import { LEVELS, type Level, type Tier } from "@/lib/types";
+import { LEVELS, TIERS, type Level } from "@/lib/types";
 import { splitCityKey, type Filters } from "@/lib/filter";
 import MultiSelect, { type Option } from "./MultiSelect";
 import type { SourceState } from "./Dashboard";
@@ -15,8 +15,6 @@ interface Props {
   sources: Record<string, SourceState | undefined>;
   hasResume: boolean;
 }
-
-const TIERS: Tier[] = ["FAANG+", "Big Tech", "High-growth"];
 
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];

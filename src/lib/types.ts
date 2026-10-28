@@ -45,7 +45,10 @@ export interface Job {
   description: string;
 }
 
-export type Tier = "FAANG+" | "Big Tech" | "High-growth";
+export type Tier = "FAANG+" | "Big Tech" | "High-growth" | "Enterprise & Industry";
+
+/** Display order everywhere a tier list is shown. */
+export const TIERS: Tier[] = ["FAANG+", "Big Tech", "High-growth", "Enterprise & Industry"];
 
 export type CompanySource =
   | { ats: "greenhouse"; board: string }
@@ -54,7 +57,8 @@ export type CompanySource =
   | { ats: "workday"; host: string; tenant: string; site: string }
   | { ats: "amazon" }
   | { ats: "eightfold"; host: string; domain: string; variant: "apply" | "pcsx" }
-  | { ats: "atlassian" };
+  | { ats: "atlassian" }
+  | { ats: "smartrecruiters"; company: string; /** ISO-2 codes (lowercase) to search again so those countries are not crowded out */ extraCountries?: string[] };
 
 export interface Company {
   id: string;

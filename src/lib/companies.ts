@@ -6,6 +6,7 @@ import type { Company, ManualSource } from "./types";
  *  greenhouse → board token = the part after boards.greenhouse.io/ (or job-boards.greenhouse.io/)
  *  lever      → site = the part after jobs.lever.co/
  *  ashby      → board = the part after jobs.ashbyhq.com/
+ *  smartrecruiters → company = the part after jobs.smartrecruiters.com/ (or careers.smartrecruiters.com/)
  *  workday    → host/tenant/site from https://<tenant>.<host>/<site> (e.g. nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite)
  *
  * `beta: true` marks endpoints that are undocumented by the vendor and may change.
@@ -58,6 +59,18 @@ export const COMPANIES: Company[] = [
   { id: "linear", name: "Linear", tier: "High-growth", careersUrl: "https://linear.app/careers", source: { ats: "ashby", board: "linear" } },
   { id: "perplexity", name: "Perplexity", tier: "High-growth", careersUrl: "https://www.perplexity.ai/hub/careers", source: { ats: "ashby", board: "perplexity" } },
   { id: "cred", name: "CRED", tier: "High-growth", careersUrl: "https://jobs.lever.co/cred", source: { ats: "lever", site: "cred" } },
+  { id: "razorpay", name: "Razorpay", tier: "High-growth", careersUrl: "https://razorpay.com/jobs/", source: { ats: "greenhouse", board: "razorpaysoftwareprivatelimited" } },
+  { id: "meesho", name: "Meesho", tier: "High-growth", careersUrl: "https://jobs.lever.co/meesho", source: { ats: "lever", site: "meesho" } },
+
+  /* ---------- Enterprise & Industry ----------
+     Established employers outside the tech-native world – banking, payments, retail, automotive –
+     where product roles sit alongside large digital and platform organisations. */
+  { id: "visa", name: "Visa", tier: "Enterprise & Industry", careersUrl: "https://corporate.visa.com/en/jobs/", source: { ats: "smartrecruiters", company: "Visa", extraCountries: ["in"] } },
+  { id: "walmart", name: "Walmart", tier: "Enterprise & Industry", careersUrl: "https://careers.walmart.com/results?q=product%20manager", beta: true, source: { ats: "workday", host: "walmart.wd5.myworkdayjobs.com", tenant: "walmart", site: "WalmartExternal" } },
+  { id: "target", name: "Target", tier: "Enterprise & Industry", careersUrl: "https://corporate.target.com/careers", beta: true, source: { ats: "workday", host: "target.wd5.myworkdayjobs.com", tenant: "target", site: "targetcareers" } },
+  { id: "capitalone", name: "Capital One", tier: "Enterprise & Industry", careersUrl: "https://www.capitalonecareers.com/", beta: true, source: { ats: "workday", host: "capitalone.wd12.myworkdayjobs.com", tenant: "capitalone", site: "Capital_One" } },
+  { id: "wellsfargo", name: "Wells Fargo", tier: "Enterprise & Industry", careersUrl: "https://www.wellsfargojobs.com/en/jobs/?search=product+manager", beta: true, source: { ats: "workday", host: "wf.wd1.myworkdayjobs.com", tenant: "wf", site: "WellsFargoJobs" } },
+  { id: "gm", name: "General Motors", tier: "Enterprise & Industry", careersUrl: "https://search-careers.gm.com/en/jobs/?search=product+manager", beta: true, source: { ats: "workday", host: "generalmotors.wd5.myworkdayjobs.com", tenant: "generalmotors", site: "Careers_GM" } },
 ];
 
 /**
@@ -86,6 +99,55 @@ export const MANUAL_SOURCES: ManualSource[] = [
     tier: "FAANG+",
     note: "Search needs a session token",
     searchUrl: () => `https://jobs.apple.com/en-us/search?search=${encodeURIComponent("product manager")}&sort=newest`,
+  },
+  {
+    id: "jpmorgan",
+    name: "JPMorgan Chase",
+    tier: "Enterprise & Industry",
+    note: "Oracle-hosted careers site, no public feed",
+    searchUrl: () => `https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?keyword=${encodeURIComponent("product manager")}`,
+  },
+  {
+    id: "goldman",
+    name: "Goldman Sachs",
+    tier: "Enterprise & Industry",
+    note: "No public jobs feed",
+    searchUrl: () => `https://higher.gs.com/results?SEARCH=${encodeURIComponent("product manager")}`,
+  },
+  {
+    id: "sap",
+    name: "SAP",
+    tier: "Enterprise & Industry",
+    note: "SuccessFactors site, no public feed",
+    searchUrl: () => `https://jobs.sap.com/search/?q=${encodeURIComponent("product manager")}&sortColumn=referencedate&sortDirection=desc`,
+  },
+  {
+    id: "oracle",
+    name: "Oracle",
+    tier: "Enterprise & Industry",
+    note: "No public jobs feed",
+    searchUrl: () => `https://careers.oracle.com/en/sites/jobsearch/jobs?keyword=${encodeURIComponent("product manager")}`,
+  },
+  {
+    id: "ibm",
+    name: "IBM",
+    tier: "Enterprise & Industry",
+    note: "No public jobs feed",
+    searchUrl: () => `https://www.ibm.com/careers/search?q=${encodeURIComponent("product manager")}`,
+  },
+  {
+    id: "cisco",
+    name: "Cisco",
+    tier: "Enterprise & Industry",
+    note: "No public jobs feed",
+    searchUrl: () => `https://jobs.cisco.com/jobs/SearchJobs/${encodeURIComponent("product manager")}`,
+  },
+  {
+    id: "tesla",
+    name: "Tesla",
+    tier: "Enterprise & Industry",
+    note: "Blocks automated access",
+    searchUrl: () => `https://www.tesla.com/careers/search/?query=${encodeURIComponent("product manager")}`,
   },
   {
     id: "uber",

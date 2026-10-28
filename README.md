@@ -2,8 +2,12 @@
 
 A dashboard of **open Product Management roles pulled straight from top tech companies' career-site feeds**, with a **location filter** and a **resume-vs-job-description match score**. Every card has an **Apply** button that opens the company's own posting.
 
-- **Companies:** Amazon, Netflix, Microsoft · NVIDIA, Salesforce, Adobe, Intel, PayPal, Mastercard, Atlassian, Spotify, Palantir, Cloudflare, Datadog, Twilio, Okta, Dropbox, Workday · Stripe, Airbnb, Databricks, Anthropic, OpenAI, Figma, Pinterest, Reddit, Coinbase, Instacart, Robinhood, Lyft, Discord, Duolingo, MongoDB, Asana, GitLab, Scale AI, Notion, Ramp, Linear, Perplexity, CRED
-- **Google, Meta, Apple, Uber** have no stable public jobs feed. They appear as one-click, pre-filtered search links in the **Sources** panel (the Google link picks up your location filter).
+- **Companies** (four categories, filterable in the sidebar):
+  - **FAANG+** – Amazon, Netflix, Microsoft
+  - **Big Tech** – NVIDIA, Salesforce, Adobe, Intel, PayPal, Mastercard, Atlassian, Spotify, Palantir, Cloudflare, Datadog, Twilio, Okta, Dropbox, Workday
+  - **High-growth** – Stripe, Airbnb, Databricks, Anthropic, OpenAI, Figma, Pinterest, Reddit, Coinbase, Instacart, Robinhood, Lyft, Discord, Duolingo, MongoDB, Asana, GitLab, Scale AI, Notion, Ramp, Linear, Perplexity, CRED, Razorpay, Meesho
+  - **Enterprise & Industry** – Visa, Walmart, Target, Capital One, Wells Fargo, General Motors (established employers outside the tech-native world – banking, payments, retail, automotive)
+- **Google, Meta, Apple, Uber, JPMorgan Chase, Goldman Sachs, SAP, Oracle, IBM, Cisco and Tesla** have no stable public jobs feed. They appear as one-click search links in the **Sources** panel (the Google link picks up your location filter).
 - **No API keys, no database, no environment variables.**
 - **Location filter:** pick any number of countries and cities. Selecting a country shows all of its cities; also ticking cities in that country narrows it to just those (e.g. *India + United States + Hyderabad* → Hyderabad roles plus every US role). Cities can also be chosen on their own.
 - **Posted filter:** any time, last 24 hours, 7, 14 or 30 days. Some feeds only publish a date (no time) and Greenhouse reports "last updated", so "last 24 hours" is accurate to the day for those.
@@ -34,7 +38,7 @@ Then at vercel.com → **Add New → Project → import the repo → Deploy**. T
 | Piece | What it does |
 |---|---|
 | `src/app/api/source/route.ts` | `GET /api/source?id=stripe` fetches one company's feed server-side, keeps only PM titles, normalises location/level/date, and returns JSON. Only ids from `companies.ts` are accepted (no open proxy). Responses are CDN-cached for 30 min. |
-| `src/lib/adapters/*` | One adapter per hiring platform: Greenhouse, Lever, Ashby, Workday, Amazon, Eightfold (Netflix, Microsoft), Atlassian. |
+| `src/lib/adapters/*` | One adapter per hiring platform: Greenhouse, Lever, Ashby, SmartRecruiters, Workday, Amazon, Eightfold (Netflix, Microsoft), Atlassian. |
 | `src/components/Dashboard.tsx` | The browser calls `/api/source` for each company (6 at a time), so rows appear progressively and one broken site never blocks the rest. |
 | `src/lib/scoring.ts` | Resume matching – runs **entirely in your browser**. |
 | `src/lib/location.ts` | Turns strings like `Bangalore, KA, IND` or `Remote - US` into country / city / remote for the filters. |
@@ -57,18 +61,18 @@ Your resume is parsed (PDF.js / Mammoth) and scored in the browser; it is never 
 
 ## Adding or removing a company
 
-Edit one line in `src/lib/companies.ts`:
+Edit one line in `src/lib/companies.ts` (`tier` is one of `FAANG+`, `Big Tech`, `High-growth`, `Enterprise & Industry`; the list of tiers lives in `src/lib/types.ts`):
 
 ```ts
-{ id: "razorpay", name: "Razorpay", tier: "High-growth", careersUrl: "https://razorpay.com/jobs/",
-  source: { ats: "greenhouse", board: "razorpaysoftwareprivatelimited" } },
+{ id: "acme", name: "Acme", tier: "Enterprise & Industry", careersUrl: "https://acme.com/careers",
+  source: { ats: "greenhouse", board: "acme" } },
 ```
 
-Find the token from the company's careers URL: `boards.greenhouse.io/<token>` · `jobs.lever.co/<site>` · `jobs.ashbyhq.com/<board>` · `<tenant>.wd5.myworkdayjobs.com/<site>`. A wrong token simply shows as "unavailable" in the Sources panel.
+Find the token from the company's careers URL: `boards.greenhouse.io/<token>` · `jobs.lever.co/<site>` · `jobs.ashbyhq.com/<board>` · `<tenant>.wd5.myworkdayjobs.com/<site>` · `jobs.smartrecruiters.com/<company>`. A wrong token simply shows as "unavailable" in the Sources panel.
 
 ## Known limitations
 
-- **Feeds are unofficial in places.** Greenhouse, Lever and Ashby offer public job-board APIs. Workday, Amazon, Atlassian, Netflix and Microsoft use undocumented endpoints that their sites call themselves; they work today but can change without notice (Netflix, Microsoft and Atlassian are tagged **beta**). Check the **Sources** panel after deploying – it lists every feed's status with the exact error and a Retry button.
+- **Feeds are unofficial in places.** Greenhouse, Lever, Ashby and SmartRecruiters (Visa) offer documented public job-board APIs. Workday, Amazon, Atlassian, Netflix and Microsoft use undocumented endpoints that their sites call themselves; they work today but can change without notice (Netflix, Microsoft, Atlassian and the Workday-hosted enterprises – Walmart, Target, Capital One, Wells Fargo, General Motors – are tagged **beta**; their site names are unverified). Check the **Sources** panel after deploying – it lists every feed's status with the exact error and a Retry button.
 - **Dates:** Greenhouse and Workday expose "last updated"/approximate dates rather than the original posting date.
 - **Descriptions:** a posting whose feed has no description can't be scored (shown as "–"); open it to read the JD.
 - **Scanned (image-only) PDFs** can't be read – paste the text instead.
