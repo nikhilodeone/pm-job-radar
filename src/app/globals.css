@@ -211,3 +211,26 @@ footer { margin-top: 32px; font-size: 12.5px; color: var(--muted); text-align: c
   .sources table { display: block; overflow-x: auto; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- multi-select ---------- */
+.ms { display: flex; flex-direction: column; gap: 6px; }
+.ms-label { font-size: 13px; color: var(--muted); }
+.ms-trigger { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.ms-trigger:hover:not(:disabled) { border-color: var(--accent); }
+.ms-trigger:disabled { opacity: 0.5; cursor: default; }
+.ms-caret { color: var(--muted); font-size: 11px; }
+.ms-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ms-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--accent-soft); color: var(--accent); font-weight: 600; padding-right: 4px; }
+.ms-chip small { font-weight: 400; opacity: 0.75; }
+.ms-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 5px; border-radius: 50%; }
+.ms-chip button:hover { background: var(--accent); color: var(--accent-ink); }
+.ms-panel { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+.ms-panel input[type="search"] { background: var(--panel); }
+.ms-list { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.ms-opt { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 13.5px; }
+.ms-opt:hover { background: var(--chip); }
+.ms-opt input { accent-color: var(--accent); }
+.ms-text { flex: 1; min-width: 0; }
+.ms-text small { margin-left: 6px; color: var(--muted); font-size: 12px; }
+.ms-count { color: var(--muted); font-size: 12px; }
+.ms-empty, .ms-more { color: var(--muted); font-size: 12.5px; padding: 6px 4px; margin: 0; }

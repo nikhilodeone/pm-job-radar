@@ -1,15 +1,16 @@
 "use client";
 import { COMPANIES } from "@/lib/companies";
 import { LEVELS, type Level, type Tier } from "@/lib/types";
-import type { Filters } from "@/lib/filter";
+import { splitCityKey, type Filters } from "@/lib/filter";
+import MultiSelect, { type Option } from "./MultiSelect";
 import type { SourceState } from "./Dashboard";
 
 interface Props {
   filters: Filters;
   set: (patch: Partial<Filters>) => void;
   reset: () => void;
-  countries: Array<[string, number]>;
-  cities: Array<[string, number]>;
+  countries: Option[];
+  cities: Option[];
   jobCounts: Record<string, number>;
   sources: Record<string, SourceState | undefined>;
   hasResume: boolean;
@@ -38,28 +39,27 @@ export default function FilterPanel({ filters: f, set, reset, countries, cities,
 
       <fieldset className="group">
         <legend>Location</legend>
-        <label className="field">
-          <span>Country</span>
-          <select value={f.country} onChange={(e) => set({ country: e.target.value, city: "" })}>
-            <option value="">All countries</option>
-            {countries.map(([c, n]) => (
-              <option key={c} value={c}>
-                {c} ({n})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>City</span>
-          <select value={f.city} onChange={(e) => set({ city: e.target.value })} disabled={!cities.length}>
-            <option value="">All cities</option>
-            {cities.map(([c, n]) => (
-              <option key={c} value={c}>
-                {c} ({n})
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Countries"
+          placeholder="All countries"
+          searchPlaceholder="Search countries…"
+          options={countries}
+          selected={f.countries}
+          onChange={(v) =>
+            // removing a country also drops the cities you had picked in it
+            set({ countries: v, cities: v.length ? f.cities.filter((k) => v.includes(splitCityKey(k).country)) : f.cities })
+          }
+        />
+        <MultiSelect
+          label="Cities"
+          placeholder={f.countries.length ? "All cities in selected countries" : "All cities"}
+          searchPlaceholder="Search cities…"
+          options={cities}
+          selected={f.cities}
+          onChange={(v) => set({ cities: v })}
+          format={(k) => splitCityKey(k).city}
+          disabled={!cities.length && !f.cities.length}
+        />
         <div className="seg" role="group" aria-label="Work mode">
           {(["any", "remote", "onsite"] as const).map((m) => (
             <button key={m} className={f.mode === m ? "on" : ""} aria-pressed={f.mode === m} onClick={() => set({ mode: m })}>
@@ -68,7 +68,7 @@ export default function FilterPanel({ filters: f, set, reset, countries, cities,
           ))}
         </div>
         <label className="check-row">
-          <input type="checkbox" checked={f.alsoRemote} onChange={(e) => set({ alsoRemote: e.target.checked })} disabled={!f.country && !f.city} />
+          <input type="checkbox" checked={f.alsoRemote} onChange={(e) => set({ alsoRemote: e.target.checked })} disabled={!f.countries.length && !f.cities.length} />
           <span>Also show “Remote” roles with no country listed</span>
         </label>
       </fieldset>
@@ -92,6 +92,7 @@ export default function FilterPanel({ filters: f, set, reset, countries, cities,
           <span>Posted</span>
           <select value={f.posted} onChange={(e) => set({ posted: e.target.value as Filters["posted"] })}>
             <option value="any">Any time</option>
+            <option value="1">Last 24 hours</option>
             <option value="7">Last 7 days</option>
             <option value="14">Last 14 days</option>
             <option value="30">Last 30 days</option>

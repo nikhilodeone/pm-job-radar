@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COMPANIES } from "@/lib/companies";
 import type { Job, MatchResult, SourceResponse, Tier } from "@/lib/types";
-import { applyFilters, countBy, DEFAULT_FILTERS, type Filters, type Status } from "@/lib/filter";
+import { applyFilters, cityKey, countBy, DEFAULT_FILTERS, normalizeFilters, splitCityKey, type Filters, type Status } from "@/lib/filter";
+import type { Option } from "./MultiSelect";
 import { buildCorpus, buildResumeProfile, scoreJob } from "@/lib/scoring";
 import { usePersistentState } from "@/lib/storage";
 import { jobsToCsv } from "@/lib/csv";
@@ -27,7 +28,9 @@ const TIER_ORDER: Tier[] = ["FAANG+", "Big Tech", "High-growth"];
 const tierOf = new Map(COMPANIES.map((c) => [c.id, c.tier]));
 
 export default function Dashboard() {
-  const [filters, setFilters] = usePersistentState<Filters>("pmradar:filters:v1", DEFAULT_FILTERS);
+  const [storedFilters, setFilters] = usePersistentState<Filters>("pmradar:filters:v2", DEFAULT_FILTERS);
+  // saved filters are coerced so a stale or corrupt localStorage value can never break rendering
+  const filters = useMemo(() => normalizeFilters(storedFilters), [storedFilters]);
   const [statuses, setStatuses] = usePersistentState<Record<string, Status | undefined>>("pmradar:status:v1", {});
   const [remember, setRemember] = usePersistentState<{ on: boolean }>("pmradar:remember:v1", { on: true });
   const [resume, setResume] = usePersistentState<{ text: string; name: string }>("pmradar:resume:v1", { text: "", name: "" }, remember.on);
@@ -137,14 +140,22 @@ export default function Dashboard() {
 
   useEffect(() => setLimit(PAGE), [filters]);
 
-  const countries = useMemo(() => countBy(allJobs, (j) => j.locations.map((l) => l.country).filter(Boolean) as string[]), [allJobs]);
-  const cities = useMemo(() => {
-    if (!filters.country) return countBy(allJobs, (j) => j.locations.map((l) => l.city).filter(Boolean) as string[]).slice(0, 60);
-    return countBy(
-      allJobs.filter((j) => j.locations.some((l) => l.country === filters.country)),
-      (j) => j.locations.filter((l) => l.country === filters.country).map((l) => l.city).filter(Boolean) as string[]
-    ).slice(0, 60);
-  }, [allJobs, filters.country]);
+  const countries = useMemo<Option[]>(
+    () => countBy(allJobs, (j) => j.locations.map((l) => l.country).filter(Boolean) as string[]).map(([value, count]) => ({ value, label: value, count })),
+    [allJobs]
+  );
+  const cities = useMemo<Option[]>(() => {
+    // offer only cities inside the selected countries (all cities when none are selected)
+    const entries = countBy(allJobs, (j) =>
+      j.locations
+        .filter((l) => l.city && (!filters.countries.length || (l.country && filters.countries.includes(l.country))))
+        .map((l) => cityKey(l.city!, l.country))
+    );
+    return entries.slice(0, 400).map(([value, count]) => {
+      const { city, country } = splitCityKey(value);
+      return { value, label: city, hint: country || undefined, count };
+    });
+  }, [allJobs, filters.countries]);
 
   const onStatus = useCallback(
     (id: string, s: Status | undefined) =>
@@ -182,7 +193,11 @@ export default function Dashboard() {
     URL.revokeObjectURL(a.href);
   }
 
-  const locationForLinks = filters.city || filters.country || undefined;
+  const locationForLinks = (filters.cities[0] && splitCityKey(filters.cities[0]).city) || filters.countries[0] || undefined;
+  const placeSummary = (() => {
+    const names = filters.cities.length ? filters.cities.map((k) => splitCityKey(k).city) : filters.countries;
+    return names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3}` : names.join(", ");
+  })();
   const hasResume = !!profile;
 
   return (
@@ -257,7 +272,7 @@ export default function Dashboard() {
           <div className="row-between results-head">
             <h2>
               {filtered.length.toLocaleString()} {filtered.length === 1 ? "role" : "roles"}
-              {filters.country || filters.city ? <span className="muted"> · {[filters.city, filters.country].filter(Boolean).join(", ")}</span> : null}
+              {placeSummary ? <span className="muted"> · {placeSummary}</span> : null}
             </h2>
             <label className="inline">
               <span>Sort</span>

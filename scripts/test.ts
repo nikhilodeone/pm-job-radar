@@ -13,7 +13,7 @@ import { normalizeAmazon } from "../src/lib/adapters/amazon";
 import { normalizeEightfold } from "../src/lib/adapters/eightfold";
 import { normalizeAtlassian } from "../src/lib/adapters/atlassian";
 import { COMPANIES } from "../src/lib/companies";
-import { applyFilters, DEFAULT_FILTERS } from "../src/lib/filter";
+import { applyFilters, DEFAULT_FILTERS, cityKey, normalizeFilters, splitCityKey } from "../src/lib/filter";
 import { buildCorpus, buildResumeProfile, scoreJob, estimateYears } from "../src/lib/scoring";
 import { jobsToCsv } from "../src/lib/csv";
 import { sanitizeJob, sanitizeJobs } from "../src/lib/sanitize";
@@ -189,21 +189,64 @@ const jobs: Job[] = [
   mk("c", { locations: parseLocations(["Remote"]), remote: true }),
   mk("d", { locations: parseLocations(["Remote - India"]), remote: true }),
   mk("e", { locations: parseLocations(["Seattle, WA"]), companyId: "amazon", company: "Amazon", postedAt: "2026-08-01T00:00:00Z" }),
+  mk("f", { locations: parseLocations(["London, UK"]), postedAt: "2026-10-26T20:00:00Z" }),
+  mk("g", { locations: parseLocations(["Hyderabad, India", "Seattle, WA"]), postedAt: "2026-10-25T00:00:00Z" }),
 ];
 const NOW = Date.parse("2026-10-27T00:00:00Z");
 const ids = (f: Partial<typeof DEFAULT_FILTERS>) => applyFilters(jobs, { ...DEFAULT_FILTERS, ...f }, {}, {}, NOW).map((j) => j.id).sort().join("");
-t("country / city / remote / recency", () => {
-  assert.equal(ids({}), "abcde");
-  assert.equal(ids({ country: "India" }), "abd");
-  assert.equal(ids({ country: "India", alsoRemote: true }), "abcd");
-  assert.equal(ids({ country: "India", city: "Hyderabad" }), "b");
+const K = (city: string, country: string) => cityKey(city, country);
+t("single country / city / remote / recency", () => {
+  assert.equal(ids({}), "abcdefg");
+  assert.equal(ids({ countries: ["India"] }), "abdg");
+  assert.equal(ids({ countries: ["India"], alsoRemote: true }), "abcdg");
+  assert.equal(ids({ countries: ["India"], cities: [K("Hyderabad", "India")] }), "bg");
   assert.equal(ids({ mode: "remote" }), "cd");
-  assert.equal(ids({ mode: "onsite", country: "India" }), "ab");
-  assert.equal(ids({ posted: "30" }), "abcd");
+  assert.equal(ids({ mode: "onsite", countries: ["India"] }), "abg");
+  assert.equal(ids({ posted: "30" }), "abcdfg");
   assert.equal(ids({ companies: ["amazon"] }), "be");
   assert.equal(ids({ levels: ["Senior"] }), "b");
   assert.equal(ids({ q: "amazon seattle" }), "e");
   assert.equal(ids({ tiers: ["FAANG+"] }), "be");
+});
+t("multiple countries", () => {
+  assert.equal(ids({ countries: ["India", "United Kingdom"] }), "abdfg");
+  assert.equal(ids({ countries: ["India", "United States"] }), "abdeg");
+  assert.equal(ids({ countries: ["India", "United Kingdom", "United States"] }), "abdefg");
+  assert.equal(ids({ countries: ["Narnia"] }), "");
+});
+t("multiple cities", () => {
+  // cities alone (no country selected) are added individually
+  assert.equal(ids({ cities: [K("Bengaluru", "India"), K("London", "United Kingdom")] }), "af");
+  assert.equal(ids({ cities: [K("Hyderabad", "India"), K("Seattle", "United States")] }), "beg");
+  // cities narrow their own country only; other selected countries stay whole
+  assert.equal(ids({ countries: ["India", "United States"], cities: [K("Hyderabad", "India")] }), "beg"); // Hyderabad roles + every US role
+  assert.equal(ids({ countries: ["India"], cities: [K("Hyderabad", "India"), K("Bengaluru", "India")] }), "abg");
+  // a city whose country is not selected is added on its own
+  assert.equal(ids({ countries: ["United Kingdom"], cities: [K("Hyderabad", "India")] }), "bfg");
+  // same city name in two countries stays distinct
+  assert.equal(ids({ cities: [K("Seattle", "India")] }), "");
+});
+t("last 24 hours / 7 days", () => {
+  assert.equal(ids({ posted: "1" }), "f"); // only f is within 24h of NOW; g is 48h old; role e has no recent date
+  assert.equal(ids({ posted: "7" }), "abcdfg"); // a–d were posted exactly 7 days before NOW (boundary is inclusive); e is from August
+  assert.equal(ids({ posted: "14", countries: ["India"] }), "abdg");
+  assert.equal(ids({ posted: "1", countries: ["India"] }), "");
+  assert.equal(ids({ posted: "1", countries: ["United Kingdom"] }), "f");
+});
+t("city keys round-trip", () => {
+  assert.deepEqual(splitCityKey(K("São Paulo", "Brazil")), { city: "São Paulo", country: "Brazil" });
+  assert.deepEqual(splitCityKey("Remote-ish"), { city: "Remote-ish", country: "" });
+  assert.deepEqual(splitCityKey(K("Foo", "")), { city: "Foo", country: "" });
+});
+t("saved filters from older versions / corrupt storage are coerced", () => {
+  const f = normalizeFilters({ country: "India", city: "Pune", countries: "India", cities: [1, "Pune|India", null], posted: "999", minScore: NaN, levels: null } as never);
+  assert.deepEqual(f.countries, []);
+  assert.deepEqual(f.cities, ["Pune|India"]);
+  assert.equal(f.posted, "any");
+  assert.equal(f.minScore, 0);
+  assert.deepEqual(f.levels, []);
+  assert.deepEqual(normalizeFilters(null), DEFAULT_FILTERS);
+  assert.doesNotThrow(() => applyFilters(jobs, normalizeFilters({ countries: undefined } as never), {}, {}, NOW));
 });
 t("csv escaping", () => {
   const csv = jobsToCsv([mk("z", { title: '=HYPERLINK("x"), PM', company: "A, Inc" })], {}, {});

@@ -8,12 +8,13 @@ export interface Filters {
   q: string;
   companies: string[]; // empty = all
   tiers: Tier[]; // empty = all
-  country: string; // "" = any
-  city: string; // "" = any
+  countries: string[]; // empty = any
+  /** City keys from cityKey(): "Hyderabad|India". Empty = any */
+  cities: string[];
   mode: "any" | "remote" | "onsite";
-  alsoRemote: boolean; // also include location-less "Remote" roles when a country is chosen
+  alsoRemote: boolean; // also include location-less "Remote" roles when a location is chosen
   levels: Level[]; // empty = all
-  posted: "any" | "7" | "14" | "30";
+  posted: "any" | "1" | "7" | "14" | "30";
   status: "all" | "saved" | "applied" | "untracked";
   minScore: number;
   sort: SortKey;
@@ -23,8 +24,8 @@ export const DEFAULT_FILTERS: Filters = {
   q: "",
   companies: [],
   tiers: [],
-  country: "",
-  city: "",
+  countries: [],
+  cities: [],
   mode: "any",
   alsoRemote: false,
   levels: [],
@@ -36,9 +37,49 @@ export const DEFAULT_FILTERS: Filters = {
 
 const tierOf = new Map(COMPANIES.map((c) => [c.id, c.tier]));
 
-export function matchesLocation(job: Job, f: Pick<Filters, "country" | "city" | "alsoRemote">): boolean {
-  if (!f.country && !f.city) return true;
-  const inPlace = job.locations.some((l) => (!f.country || l.country === f.country) && (!f.city || l.city === f.city));
+/* ---------- city keys ---------- */
+
+/** Cities are identified by city + country so "Cambridge, UK" and "Cambridge, US" stay distinct. */
+export const cityKey = (city: string, country?: string): string => `${city}|${country ?? ""}`;
+export function splitCityKey(key: string): { city: string; country: string } {
+  const i = key.lastIndexOf("|");
+  return i < 0 ? { city: key, country: "" } : { city: key.slice(0, i), country: key.slice(i + 1) };
+}
+
+const strArray = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+/** Saved filters come from localStorage – coerce them so an old or corrupt value can never crash the page. */
+export function normalizeFilters(raw: Partial<Filters> | null | undefined): Filters {
+  const f = { ...DEFAULT_FILTERS, ...(raw && typeof raw === "object" ? raw : {}) } as Filters;
+  return {
+    ...f,
+    q: typeof f.q === "string" ? f.q : "",
+    companies: strArray(f.companies),
+    tiers: strArray(f.tiers) as Tier[],
+    levels: strArray(f.levels) as Level[],
+    countries: strArray(f.countries),
+    cities: strArray(f.cities),
+    minScore: Number.isFinite(f.minScore) ? f.minScore : 0,
+    posted: ["any", "1", "7", "14", "30"].includes(f.posted) ? f.posted : "any",
+  };
+}
+
+/**
+ * Location semantics with several countries and cities selected:
+ *  - nothing selected                      → every job
+ *  - a selected country                    → all of its cities …
+ *  - … unless you also picked cities in that country → then only those cities
+ *  - a selected city whose country is not selected → added on its own
+ * e.g. India + United States + "Hyderabad" → Hyderabad roles plus every US role.
+ */
+export function matchesLocation(job: Job, f: Pick<Filters, "countries" | "cities" | "alsoRemote">): boolean {
+  if (!f.countries.length && !f.cities.length) return true;
+  const cityKeys = new Set(f.cities);
+  const narrowed = new Set(f.cities.map((k) => splitCityKey(k).country));
+  const inPlace = job.locations.some((l) => {
+    if (l.city && cityKeys.has(cityKey(l.city, l.country))) return true;
+    return !!l.country && f.countries.includes(l.country) && !narrowed.has(l.country);
+  });
   if (inPlace) return true;
   // "Remote" with no country attached at all – counts as available everywhere
   return f.alsoRemote && job.remote && job.locations.every((l) => !l.country);

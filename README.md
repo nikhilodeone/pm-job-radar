@@ -5,6 +5,8 @@ A dashboard of **open Product Management roles pulled straight from top tech com
 - **Companies:** Amazon, Netflix, Microsoft · NVIDIA, Salesforce, Adobe, Intel, PayPal, Mastercard, Atlassian, Spotify, Palantir, Cloudflare, Datadog, Twilio, Okta, Dropbox, Workday · Stripe, Airbnb, Databricks, Anthropic, OpenAI, Figma, Pinterest, Reddit, Coinbase, Instacart, Robinhood, Lyft, Discord, Duolingo, MongoDB, Asana, GitLab, Scale AI, Notion, Ramp, Linear, Perplexity, CRED
 - **Google, Meta, Apple, Uber** have no stable public jobs feed. They appear as one-click, pre-filtered search links in the **Sources** panel (the Google link picks up your location filter).
 - **No API keys, no database, no environment variables.**
+- **Location filter:** pick any number of countries and cities. Selecting a country shows all of its cities; also ticking cities in that country narrows it to just those (e.g. *India + United States + Hyderabad* → Hyderabad roles plus every US role). Cities can also be chosen on their own.
+- **Posted filter:** any time, last 24 hours, 7, 14 or 30 days. Some feeds only publish a date (no time) and Greenhouse reports "last updated", so "last 24 hours" is accurate to the day for those.
 
 ## Run locally
 
